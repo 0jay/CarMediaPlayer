@@ -1,12 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Root is a horizontal split: narrow left nav | full-height content area.
-     Moving the nav to the side preserves the full 720 dp of height for
-     content — the single most constrained dimension on this 1920×720 screen.
-     Layer order left → right:
-       1. side_nav    — source tabs stacked vertically + Now Playing at bottom
-       2. right_area  — content fragment + mini player bar at bottom         -->
-<LinearLayout
+<!-- Root is a FrameLayout so the Now Playing screen can overlay the full
+     display — including the sidebar — as a true full-screen experience.
+     Layer order (back → front):
+       1. main_layout  — horizontal split: sidebar | content + mini player
+       2. fullscreen_container — full-screen overlay used only for Now Playing -->
+<FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_dark">
+
+<!-- ── Main app layout (sidebar + browse content) ──────────────────── -->
+<LinearLayout
+    android:id="@+id/main_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="horizontal"
@@ -168,3 +174,14 @@
     </LinearLayout>
 
 </LinearLayout>
+
+<!-- ── Full-screen Now Playing overlay ──────────────────────────────── -->
+<!-- Sits in front of the sidebar + browse content.  Shown only when the
+     Now Playing fragment is active; gone at all other times.            -->
+<FrameLayout
+    android:id="@+id/fullscreen_container"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:visibility="gone"/>
+
+</FrameLayout>

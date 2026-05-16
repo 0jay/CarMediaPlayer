@@ -188,12 +188,6 @@ class MediaService : MediaBrowserServiceCompat() {
             .build()
         player.addListener(playerListener)
 
-        // Restore persisted shuffle / repeat preferences from the previous session.
-        // Applied before the session is created so the initial setShuffleMode /
-        // setRepeatMode calls on the session reflect the restored values.
-        player.shuffleModeEnabled = prefs.getBoolean(PREF_SHUFFLE, false)
-        player.repeatMode         = prefs.getInt(PREF_REPEAT_MODE, Player.REPEAT_MODE_OFF)
-
         session = MediaSessionCompat(this, "MediaService").apply {
             setFlags(
                 MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
@@ -203,6 +197,13 @@ class MediaService : MediaBrowserServiceCompat() {
             setPlaybackState(buildPlaybackState())
             isActive = true
         }
+
+        // Restore persisted shuffle / repeat preferences from the previous session.
+        // Must come after session is initialised — setting these on the player
+        // fires playerListener callbacks that call session.setShuffleMode() /
+        // session.setRepeatMode(), so session must exist first.
+        player.shuffleModeEnabled = prefs.getBoolean(PREF_SHUFFLE, false)
+        player.repeatMode         = prefs.getInt(PREF_REPEAT_MODE, Player.REPEAT_MODE_OFF)
 
         setSessionToken(session.sessionToken)
         startForeground(NOTIFICATION_ID, buildNotification())

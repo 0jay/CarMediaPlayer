@@ -12,6 +12,7 @@
     <string name="subsonic_dialog_title">Subsonic / Navidrome Server</string>
     <string name="subsonic_not_configured">Server not configured — tap Settings…</string>
     <string name="now_playing">Now Playing</string>
+    <string name="now_playing_back">‹ Back</string>
     <string name="artists">Artists</string>
     <string name="albums">Albums</string>
     <string name="tracks">Tracks</string>

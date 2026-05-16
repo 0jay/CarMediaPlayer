@@ -5,6 +5,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
@@ -39,8 +40,12 @@ class MainActivity : AppCompatActivity() {
             val skinConfig = Settings.System.getInt(contentResolver, "SKIN_THEME_CONFIG", 1)
             val newMode = MyApplication.nightModeFromSkinConfig(skinConfig)
             if (AppCompatDelegate.getDefaultNightMode() != newMode) {
+                // Updating the global setting triggers AppCompat's applyDayNight().
+                // Because uiMode is declared in our manifest configChanges, the
+                // result is an onConfigurationChanged() callback rather than a
+                // destroy/recreate — so the MediaBrowser connection, current
+                // playback state, and back-stack all survive the theme flip.
                 AppCompatDelegate.setDefaultNightMode(newMode)
-                window.decorView.post { recreate() }
             }
         }
     }
@@ -101,6 +106,124 @@ class MainActivity : AppCompatActivity() {
             null
         )
 
+        setupClickListeners()
+
+        if (savedInstanceState == null) {
+            supportFragmentManager.beginTransaction()
+                .replace(R.id.content_container, BrowseFragment(), TAG_BROWSE)
+                .commit()
+            highlightSource(MediaService.USB1_ROOT)
+        }
+
+        // Hide the full-screen overlay as soon as Now Playing is popped from
+        // the back stack — covers both the hardware back button and the in-app
+        // close button (which both call popBackStack()).
+        supportFragmentManager.addOnBackStackChangedListener {
+            val nowPlayingVisible =
+                supportFragmentManager.findFragmentByTag(TAG_NOW_PLAYING) != null
+            binding.fullscreenContainer.visibility =
+                if (nowPlayingVisible) View.VISIBLE else View.GONE
+            if (!nowPlayingVisible) showMiniPlayer()
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (!skinReceiverRegistered) {
+            registerReceiver(skinReceiver, IntentFilter("com.saicmotor.changeSkin"))
+            skinReceiverRegistered = true
+        }
+        mediaBrowser.connect()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (skinReceiverRegistered) {
+            unregisterReceiver(skinReceiver)
+            skinReceiverRegistered = false
+        }
+        MediaControllerCompat.getMediaController(this)?.unregisterCallback(controllerCallback)
+        mediaBrowser.disconnect()
+    }
+
+    override fun onBackPressed() {
+        val browse = browseFragment()
+        if (supportFragmentManager.backStackEntryCount > 0) {
+            // The OnBackStackChangedListener handles hiding the overlay and
+            // restoring the mini player once the pop completes.
+            supportFragmentManager.popBackStack()
+        } else if (browse?.navigateBack() == true) {
+            // handled
+        } else {
+            super.onBackPressed()
+        }
+    }
+
+    /**
+     * Delivered by the system when uiMode (or any other declared configChanges
+     * value) changes while the activity is alive.  We declare uiMode in the
+     * manifest specifically to receive this in place of a destroy/recreate
+     * when SAIC's headlight skin broadcast flips between day and night.
+     *
+     * Re-inflating the layout is necessary because most colour references in
+     * the app are direct `@color/…` lookups; existing views don't re-resolve
+     * their colours when the configuration changes.  By detaching all
+     * fragments around the re-inflation we let FragmentManager rebuild their
+     * view trees against the new theme too — internal fragment state (scroll
+     * position, current category, etc.) survives because the fragments
+     * themselves stay in the manager.
+     */
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        applyThemeChange()
+    }
+
+    private fun applyThemeChange() {
+        val activeSource      = browseFragment()?.sourceRoot ?: MediaService.USB1_ROOT
+        val nowPlayingVisible = supportFragmentManager.findFragmentByTag(TAG_NOW_PLAYING) != null
+
+        // Detach every fragment so its view is torn down before we swap out
+        // the host layout.  Fragments stay in FragmentManager; only their
+        // views are destroyed.
+        val fragments = supportFragmentManager.fragments
+        if (fragments.isNotEmpty()) {
+            supportFragmentManager.beginTransaction().apply {
+                fragments.forEach { detach(it) }
+            }.commitNowAllowingStateLoss()
+        }
+
+        // Re-inflate the activity layout against the new theme.  The
+        // OnBackStackChangedListener registered in onCreate still works —
+        // it captures `binding` as a property reference, so it sees the
+        // freshly-assigned value here.
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        setupClickListeners()
+
+        // Re-attach the fragments — their views are rebuilt inside the
+        // new containers and pick up the new theme automatically.
+        if (fragments.isNotEmpty()) {
+            supportFragmentManager.beginTransaction().apply {
+                fragments.forEach { attach(it) }
+            }.commitNowAllowingStateLoss()
+        }
+
+        // Restore UI state that lives outside the fragments.
+        highlightSource(activeSource)
+        binding.fullscreenContainer.visibility =
+            if (nowPlayingVisible) View.VISIBLE else View.GONE
+
+        // Re-push the current playback state to the freshly-inflated mini player.
+        // The MediaController itself is still attached to the activity — no
+        // reconnection to the service is needed.
+        MediaControllerCompat.getMediaController(this)?.let { controller ->
+            controllerCallback.onMetadataChanged(controller.metadata)
+            controllerCallback.onPlaybackStateChanged(controller.playbackState)
+        }
+    }
+
+    private fun setupClickListeners() {
         // Source tab clicks
         binding.btnSourceUsb1.setOnClickListener   { switchSource(MediaService.USB1_ROOT) }
         binding.btnSourceOnline.setOnClickListener { switchSource(MediaService.ONLINE_ROOT) }
@@ -128,44 +251,6 @@ class MainActivity : AppCompatActivity() {
             MediaControllerCompat.getMediaController(this)?.transportControls?.skipToNext()
         }
         binding.miniPlayer.setOnClickListener { showNowPlaying() }
-
-        if (savedInstanceState == null) {
-            supportFragmentManager.beginTransaction()
-                .replace(R.id.content_container, BrowseFragment(), TAG_BROWSE)
-                .commit()
-            highlightSource(MediaService.USB1_ROOT)
-        }
-    }
-
-    override fun onStart() {
-        super.onStart()
-        if (!skinReceiverRegistered) {
-            registerReceiver(skinReceiver, IntentFilter("com.saicmotor.changeSkin"))
-            skinReceiverRegistered = true
-        }
-        mediaBrowser.connect()
-    }
-
-    override fun onStop() {
-        super.onStop()
-        if (skinReceiverRegistered) {
-            unregisterReceiver(skinReceiver)
-            skinReceiverRegistered = false
-        }
-        MediaControllerCompat.getMediaController(this)?.unregisterCallback(controllerCallback)
-        mediaBrowser.disconnect()
-    }
-
-    override fun onBackPressed() {
-        val browse = browseFragment()
-        if (supportFragmentManager.backStackEntryCount > 0) {
-            supportFragmentManager.popBackStack()
-            showMiniPlayer()
-        } else if (browse?.navigateBack() == true) {
-            // handled
-        } else {
-            super.onBackPressed()
-        }
     }
 
     // ── Navigation ─────────────────────────────────────────────────────────
@@ -206,8 +291,9 @@ class MainActivity : AppCompatActivity() {
         if (supportFragmentManager.findFragmentByTag(TAG_NOW_PLAYING) != null) return
         binding.miniPlayer.visibility = View.GONE
         binding.miniPlayerDivider.visibility = View.GONE
+        binding.fullscreenContainer.visibility = View.VISIBLE
         supportFragmentManager.beginTransaction()
-            .replace(R.id.content_container, NowPlayingFragment(), TAG_NOW_PLAYING)
+            .replace(R.id.fullscreen_container, NowPlayingFragment(), TAG_NOW_PLAYING)
             .addToBackStack(null)
             .commit()
         binding.root.post {
