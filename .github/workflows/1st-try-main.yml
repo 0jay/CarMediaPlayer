@@ -1,0 +1,47 @@
+name: Build Signed CarMediaPlayer APK
+
+on:
+  workflow_dispatch:  # Manual trigger only
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+    
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+    
+    - name: Make gradlew executable
+      run: chmod +x gradlew
+    
+    # Create a keystore on the fly
+    - name: Create keystore
+      run: |
+        keytool -genkey -v -keystore release.keystore \
+          -alias mykey -keyalg RSA -keysize 2048 -validity 10000 \
+          -storepass password -keypass password \
+          -dname "CN=CarMediaPlayer, OU=Development, O=GitHub, L=City, S=State, C=US"
+    
+    # Build and sign the release APK
+    - name: Build Signed Release APK
+      run: |
+        ./gradlew assembleRelease \
+          -Pandroid.injected.signing.store.file=$(pwd)/release.keystore \
+          -Pandroid.injected.signing.store.password=password \
+          -Pandroid.injected.signing.key.alias=mykey \
+          -Pandroid.injected.signing.key.password=password
+    
+    - name: Upload Signed APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: CarMediaPlayer-release-signed
+        path: app/build/outputs/apk/release/*.apk
