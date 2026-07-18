@@ -27,19 +27,31 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
-    # This step explicitly installs Gradle on the runner
-    - name: Install Gradle
+    # Install required SDK components
+    - name: Install SDK components
       run: |
+        yes | sdkmanager --licenses
+        sdkmanager "platforms;android-34"
+        sdkmanager "build-tools;34.0.0"
+        sdkmanager "platform-tools"
+
+    # Install Gradle and generate the wrapper
+    - name: Install Gradle and generate wrapper
+      run: |
+        # Install Gradle
         wget https://services.gradle.org/distributions/gradle-8.7-bin.zip
         unzip gradle-8.7-bin.zip -d /opt/gradle
-        echo "/opt/gradle/gradle-8.7/bin" >> $GITHUB_PATH
+        export PATH=/opt/gradle/gradle-8.7/bin:$PATH
+        
+        # Generate the Gradle wrapper files
+        gradle wrapper
+        
+        # Make the wrapper executable
+        chmod +x gradlew
 
-    # Now the wrapper can use the installed Gradle
-    - name: Make gradlew executable
-      run: chmod +x gradlew
-
+    # Now we have gradlew, so we can build
     - name: Build Debug APK
-      run: ./gradlew assembleDebug
+      run: ./gradlew assembleDebug --stacktrace
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
