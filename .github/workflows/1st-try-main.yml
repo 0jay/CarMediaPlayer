@@ -1,5 +1,9 @@
 name: Build Signed CarMediaPlayer APK
 
+# This environment variable tells the runner to use Node 20
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+  
 on:
   workflow_dispatch:  # Manual trigger only
 
