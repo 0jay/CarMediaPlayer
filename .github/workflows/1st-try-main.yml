@@ -27,11 +27,16 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
-    # This step automatically generates the Gradle wrapper if it's missing
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4
-      with:
-        gradle-version: '8.7'  # You can specify a version, or remove this line for latest
+    # This step explicitly installs Gradle on the runner
+    - name: Install Gradle
+      run: |
+        wget https://services.gradle.org/distributions/gradle-8.7-bin.zip
+        unzip gradle-8.7-bin.zip -d /opt/gradle
+        echo "/opt/gradle/gradle-8.7/bin" >> $GITHUB_PATH
+
+    # Now the wrapper can use the installed Gradle
+    - name: Make gradlew executable
+      run: chmod +x gradlew
 
     - name: Build Debug APK
       run: ./gradlew assembleDebug
