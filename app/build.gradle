@@ -33,17 +33,17 @@ android {
     // keytool commands in the spec (§5.2) to produce app/keys/platform.keystore,
     // then uncomment below.
     //
-     signingConfigs {
-         platform {
-             storeFile     file("keys/platform.keystore")
-             storePassword "android"
-             keyAlias      "platform"
-             keyPassword   "android"
-         }
-     }
-     buildTypes {
-         release { signingConfig signingConfigs.platform }
-         debug   { signingConfig signingConfigs.platform }
+//     signingConfigs {
+//         platform {
+//             storeFile     file("keys/platform.keystore")
+//             storePassword "android"
+//             keyAlias      "platform"
+//             keyPassword   "android"
+//         }
+//     }
+//     buildTypes {
+//         release { signingConfig signingConfigs.platform }
+//         debug   { signingConfig signingConfigs.platform }
      }
 }
 
