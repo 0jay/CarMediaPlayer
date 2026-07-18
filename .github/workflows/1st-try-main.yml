@@ -1,51 +1,43 @@
-name: Build Signed CarMediaPlayer APK
+name: Build CarMediaPlayer APK
 
-# This environment variable tells the runner to use Node 20
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  
+
 on:
-  workflow_dispatch:  # Manual trigger only
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-    
+
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
-    
+
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
-    
-    - name: Make gradlew executable
-      run: chmod +x gradlew
-    
-    # Create a keystore on the fly
-    - name: Create keystore
-      run: |
-        keytool -genkey -v -keystore release.keystore \
-          -alias mykey -keyalg RSA -keysize 2048 -validity 10000 \
-          -storepass password -keypass password \
-          -dname "CN=CarMediaPlayer, OU=Development, O=GitHub, L=City, S=State, C=US"
-    
-    # Build and sign the release APK
-    - name: Build Signed Release APK
-      run: |
-        ./gradlew assembleRelease \
-          -Pandroid.injected.signing.store.file=$(pwd)/release.keystore \
-          -Pandroid.injected.signing.store.password=password \
-          -Pandroid.injected.signing.key.alias=mykey \
-          -Pandroid.injected.signing.key.password=password
-    
-    - name: Upload Signed APK
+
+    # This step automatically generates the Gradle wrapper if it's missing
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v4
+      with:
+        gradle-version: '8.7'  # You can specify a version, or remove this line for latest
+
+    - name: Build Debug APK
+      run: ./gradlew assembleDebug
+
+    - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: CarMediaPlayer-release-signed
-        path: app/build/outputs/apk/release/*.apk
+        name: CarMediaPlayer-debug
+        path: app/build/outputs/apk/debug/*.apk
