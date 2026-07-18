@@ -1,44 +1,59 @@
-name: Build CarMediaPlayer APK
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
 
-on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-  # Allows you to manually trigger the workflow from GitHub UI
-  workflow_dispatch:
+android {
+    namespace 'com.saicmotor.media'
+    compileSdk 34
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    
-    steps:
-    # 1. Check out the code
-    - name: Checkout repository
-      uses: actions/checkout@v4
-    
-    # 2. Set up Java
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-    
-    # 3. Set up Android SDK
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
-    
-    # 4. Grant execute permission for gradlew
-    - name: Make gradlew executable
-      run: chmod +x gradlew
-    
-    # 5. Build the APK (Debug version - no signing required)
-    - name: Build Debug APK
-      run: ./gradlew assembleDebug
-    
-    # 6. Upload the APK as an artifact
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: CarMediaPlayer-debug
-        path: app/build/outputs/apk/debug/*.apk
+    defaultConfig {
+        applicationId "com.saicmotor.media"
+        minSdk 27
+        targetSdk 28
+        versionCode 1
+        versionName "1.0"
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+
+    buildFeatures {
+        viewBinding true
+    }
+
+    // Signing configuration (commented out for now)
+    // To enable signing, uncomment the following sections
+    // and place your keystore in app/keys/
+    //
+//     signingConfigs {
+//         platform {
+//             storeFile     file("keys/platform.keystore")
+//             storePassword "android"
+//             keyAlias      "platform"
+//             keyPassword   "android"
+//         }
+//     }
+//     buildTypes {
+//         release { signingConfig signingConfigs.platform }
+//         debug   { signingConfig signingConfigs.platform }
+//     }
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.9.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.8.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.media:media:1.6.0'
+    implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.1.0'
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+}
