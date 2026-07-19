@@ -1,53 +1,37 @@
-name: Build CarMediaPlayer APK
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+name: Build Debug APK
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ main ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    
     steps:
-    - name: Checkout repository
+    - name: Checkout code
       uses: actions/checkout@v4
-
+      
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
-
-    - name: Setup Android SDK
+        
+    - name: Set up Android SDK
       uses: android-actions/setup-android@v3
-
-    - name: Install SDK components
-      run: |
-        yes | sdkmanager --licenses
-        sdkmanager "platforms;android-34"
-        sdkmanager "build-tools;34.0.0"
-        sdkmanager "platform-tools"
-
-    - name: Install Gradle
-      run: |
-        wget https://services.gradle.org/distributions/gradle-8.7-bin.zip
-        unzip gradle-8.7-bin.zip -d /opt/gradle
-        echo "/opt/gradle/gradle-8.7/bin" >> $GITHUB_PATH
-
-    - name: Create local.properties
-      run: echo "sdk.dir=$ANDROID_HOME" > local.properties
-
+      
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+      
     - name: Build Debug APK
-      run: gradle assembleDebug --stacktrace
-
+      run: ./gradlew assembleDebug --no-daemon
+      
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: CarMediaPlayer-debug
+        name: app-debug
         path: app/build/outputs/apk/debug/*.apk
